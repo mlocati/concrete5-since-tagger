@@ -140,7 +140,7 @@ class Patcher
                 foreach (\preg_split('/[\r\n]+/', $token[1]) as $s) {
                     if ($first === true) {
                         $first = false;
-                    } elseif (\strlen($s) > $indentation) {
+                    } elseif (\strlen($s) > \strlen($indentation)) {
                         $indentation = $s;
                     }
                 }
