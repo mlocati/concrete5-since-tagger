@@ -1,0 +1,4 @@
+/tmp/
+/vendor/
+/.env
+.php_cs.cache

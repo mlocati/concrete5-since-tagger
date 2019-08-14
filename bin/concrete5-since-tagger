@@ -1,0 +1,14 @@
+#!/usr/bin/env php
+<?php
+
+use MLocati\C5SinceTagger\Application;
+
+if (!defined('PHP_VERSION_ID') || PHP_VERSION_ID < 70200) {
+    echo "Please use PHP 7.2+\n";
+    exit(1);
+}
+require __DIR__ . '/../src/bootstrap.php';
+
+$application = new Application();
+
+$application->run();

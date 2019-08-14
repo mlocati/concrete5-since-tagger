@@ -1,0 +1,47 @@
+{
+    "license" : "MIT",
+    "name" : "mlocati/concrete5-since-tagger",
+    "description" : "Compare data between concrete5 versions and manages @since PHPDoc tags",
+    "authors" : [{
+            "name" : "Michele Locati",
+            "email" : "michele@locati.it",
+            "homepage" : "https://mlocati.github.io",
+            "role" : "Author"
+        }
+    ],
+    "keywords" : [
+        "concrete5",
+        "versions",
+        "since",
+        "phpdoc"
+    ],
+    "support" : {
+        "issues" : "https://github.com/mlocati/concrete5-since-tagger",
+        "source" : "https://github.com/mlocati/concrete5-since-tagger"
+    },
+    "config": {
+       "process-timeout": 0
+    },
+    "require" : {
+        "php" : ">=7.2",
+        "doctrine/orm" : "^2.6",
+        "symfony/console" : "^4.0",
+        "doctrine/dbal" : "^2.6",
+        "vlucas/phpdotenv": "^3.4",
+        "guzzlehttp/guzzle": "^6.3"
+    },
+    "require-dev" : {
+        "friendsofphp/php-cs-fixer" : "^2.15.1"
+    },
+    "autoload" : {
+        "psr-4" : {
+            "MLocati\\C5SinceTagger\\" : "src"
+        }
+    },
+    "bin" : [
+        "bin/concrete5-since-tagger"
+    ],
+    "scripts" : {
+        "phpcs" : "php-cs-fixer fix --no-interaction --dry-run --diff --using-cache=no -v --config=.php_cs.dist"
+    }
+}
