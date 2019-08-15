@@ -129,6 +129,7 @@ class Patcher
         if ($firstItemIndex === null || $firstItemIndex === 0) {
             throw new \Exception('Unable to find the first useful token');
         }
+        $isStraightWhitespace = \is_array($tokens[$firstItemIndex]) && $tokens[$firstItemIndex][0] === T_WHITESPACE && \preg_match('/^[ \t]+$/', $tokens[$firstItemIndex][1]);
         $indentation = '';
         for ($index = $firstItemIndex - 1; $index >= 0; $index--) {
             $token = $tokens[$index];
@@ -151,7 +152,14 @@ class Patcher
             }
             break;
         }
-        \array_splice($tokens, $firstItemIndex, 0, [
+        if ($indentation === '' && $index === $firstItemIndex - 1 && $isStraightWhitespace) {
+            $indentation = $tokens[$firstItemIndex][1];
+            //$tokens[$firstItemIndex][1] .= $eol . $tokens[$firstItemIndex][1];
+            $insertAt = $firstItemIndex + 1;
+        } else {
+            $insertAt = $firstItemIndex;
+        }
+        \array_splice($tokens, $insertAt, 0, [
             [
                 T_DOC_COMMENT,
                 '/** */',
@@ -164,6 +172,6 @@ class Patcher
             ],
         ]);
 
-        return [$firstItemIndex, $indentation];
+        return [$insertAt, $indentation];
     }
 }
