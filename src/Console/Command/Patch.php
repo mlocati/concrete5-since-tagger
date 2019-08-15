@@ -80,23 +80,28 @@ class Patch extends Command
                 $progressBar->finish();
                 $progressBar = null;
             });
-        $patches = $differ->getPatches();
-        $this->output->writeln('');
+        $previousMemoryLimit = \ini_set('memory_limit', '-1');
+        try {
+            $patches = $differ->getPatches($em);
 
-        if ($patches->isEmpty()) {
-            $this->output->writeln('no patches found.');
+            if ($patches->isEmpty()) {
+                $this->output->writeln('No patches found.');
+
+                return 0;
+            }
+
+            $patcher = new Patcher($webroot);
+            foreach ($patches->getFiles() as $file) {
+                $this->output->write("Patching file {$file}... ");
+                $patcher->apply($patches->getFilePatches($file), $file);
+                $this->output->writeln('done.');
+            }
 
             return 0;
+        } finally {
+            if ($previousMemoryLimit !== false) {
+                \ini_set('memory_limit', $previousMemoryLimit);
+            }
         }
-        $this->output->writeln('done.');
-
-        $patcher = new Patcher($webroot);
-        foreach ($patches->getFiles() as $file) {
-            $this->output->write("Patching file {$file}... ");
-            $patcher->apply($patches->getFilePatches($file), $file);
-            $this->output->writeln('done.');
-        }
-
-        return 0;
     }
 }
