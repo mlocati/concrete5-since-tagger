@@ -490,12 +490,12 @@ class Serializer
     private function getClassAliasDisplayName($runtimeName)
     {
         $runtimeNameLC = \strtolower($runtimeName);
-        $keys = \array_keys($this->getClassAliasList());
+        $keys = \array_keys($this->getFacadeList());
         $map = \array_change_key_case(\array_combine($keys, $keys), \CASE_LOWER);
         if (isset($map[$runtimeNameLC])) {
             return $map[$runtimeNameLC];
         }
-        $keys = \array_keys($this->getFacadeList());
+        $keys = \array_keys($this->getClassAliasList());
         $map = \array_change_key_case(\array_combine($keys, $keys), \CASE_LOWER);
         if (isset($map[$runtimeNameLC])) {
             return $map[$runtimeNameLC];
