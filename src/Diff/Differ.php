@@ -12,14 +12,14 @@ use MLocati\C5SinceTagger\Reflected\ReflectedVersion;
 class Differ
 {
     /**
-     * \MLocati\C5SinceTagger\Reflected\ReflectedVersion.
+     * @var \MLocati\C5SinceTagger\Reflected\ReflectedVersion
      */
     private $baseVersion;
 
     /**
      * Sorted from the newer to the older.
      *
-     * \MLocati\C5SinceTagger\Reflected\ReflectedVersion[]
+     * @var \MLocati\C5SinceTagger\Reflected\ReflectedVersion[]
      */
     private $previousVersions;
 
