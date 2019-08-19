@@ -81,7 +81,7 @@ class Patcher
                             $first = false;
                         } else {
                             $index++;
-                            array_splice($lines, $index, 0, "{$indentation} * @since {$sinceLine}");
+                            \array_splice($lines, $index, 0, "{$indentation} * @since {$sinceLine}");
                             $count++;
                         }
                         if ($sinceLines === [] && isset($m[2])) {

@@ -121,4 +121,22 @@ trait DefinedAtTrait
     {
         return \strpos($this->getDefinedAtFile(), 'concrete/vendor/') === 0;
     }
+
+    /**
+     * Get the vendor name.
+     *
+     * @return string
+     */
+    public function getVendorName(): string
+    {
+        if ($this->isVendor() === false) {
+            return '';
+        }
+        $m = null;
+        if (!\preg_match('%^concrete/vendor/([^/]+/[^/]+)/%', $this->getDefinedAtFile(), $m)) {
+            throw new \Exception('Unable to extract the vendor from ' . $this->getDefinedAtFile());
+        }
+
+        return $m[1];
+    }
 }

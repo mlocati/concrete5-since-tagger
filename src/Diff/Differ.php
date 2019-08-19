@@ -213,24 +213,10 @@ class Differ
                     $prevItems[$index] = null;
                 }
             }
-            $since = '';
             if (\in_array(null, $prevItems, true)) {
-                $since = $this->baseVersion->getName();
-                $notIn = [];
-                $found = false;
-                for ($index = \count($this->previousVersions) - 1; $index >= 0; $index--) {
-                    if ($prevItems[$index] === null) {
-                        if ($found) {
-                            $notIn[] = $this->previousVersions[$index]->getName();
-                        }
-                    } elseif ($found === false) {
-                        $found = true;
-                        $since = $this->previousVersions[$index]->getName();
-                    }
-                }
-                if ($notIn !== []) {
-                    $since .= ' (but not in ' . \implode(' ', $notIn) . ')';
-                }
+                $since = $this->getDiffGroups($prevItems)->getSince();
+            } else {
+                $since = '';
             }
             if ($since === $parentSince) {
                 $since = '';
@@ -534,5 +520,21 @@ class Differ
         }
 
         return $this->traitMaps[$key];
+    }
+
+    private function getDiffGroups(array $prevItems): DiffGroupList
+    {
+        $diffGroupList = new DiffGroupList();
+        for ($index = \count($this->previousVersions) - 1; $index >= 0; $index--) {
+            if ($prevItems[$index] === null) {
+                $diffGroupList->add(DiffGroup::TYPE_MISSING, $this->previousVersions[$index]);
+            } else {
+                $type = $prevItems[$index]->isVendor() ? DiffGroup::TYPE_VENDOR : DiffGroup::TYPE_CORE;
+                $diffGroupList->add($type, $this->previousVersions[$index], $type === DiffGroup::TYPE_VENDOR ? $prevItems[$index]->getVendorName() : '');
+            }
+        }
+        $diffGroupList->add(DiffGroup::TYPE_CORE, $this->baseVersion);
+
+        return $diffGroupList;
     }
 }

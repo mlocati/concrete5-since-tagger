@@ -32,39 +32,9 @@ class Patch extends Command
      */
     protected function handle(): int
     {
-        $rawPath = $this->input->getArgument('path');
-        $webroot = \realpath($rawPath);
-        if ($webroot && \is_dir($webroot)) {
-            $webroot = \rtrim(\str_replace(\DIRECTORY_SEPARATOR, '/', $webroot), '/');
-        } else {
-            $webroot = '';
-        }
-        if ($webroot === '') {
-            throw new \Exception("Unable to find the directory {$rawPath}");
-        }
-
-        $parser = new Parser($this->getApplication()->getTemporaryDirectory());
-        $baseVersion = $parser->parse($webroot);
-
-        if (!$this->input->getOption('raw-name')) {
-            $m = null;
-            if (!\preg_match('/^(\d+(?:\.\d+)*)*/', $baseVersion->getName(), $m)) {
-                throw new \Exception("Failed to extract the version from {$baseVersion->getName()}");
-            }
-            $baseVersion->setName($m[1]);
-        }
-
-        $em = $this->getApplication()->getEntityManager();
-        $versionRepo = $em->getRepository(ReflectedVersion::class);
-        $previousVersions = [];
-        foreach ($versionRepo->findAll() as $otherVersion) {
-            if (\version_compare($otherVersion->getName(), $baseVersion->getName()) < 0) {
-                $previousVersions[] = $otherVersion;
-            }
-        }
-        if ($previousVersions === []) {
-            throw new \Exception("No parsed versions found that are older than {$baseVersion->getName()}");
-        }
+        $webroot = $this->getWebroot();
+        $baseVersion = $this->getBaseVersion($webroot);
+        $previousVersions = $this->getPreviousVersions($baseVersion);
 
         $this->output->writeln('Collecting patches');
         $differ = new Differ($baseVersion, $previousVersions);
@@ -82,7 +52,7 @@ class Patch extends Command
             });
         $previousMemoryLimit = \ini_set('memory_limit', '-1');
         try {
-            $patches = $differ->getPatches($em);
+            $patches = $differ->getPatches();
 
             if ($patches->isEmpty()) {
                 $this->output->writeln('No patches found.');
@@ -103,5 +73,57 @@ class Patch extends Command
                 \ini_set('memory_limit', $previousMemoryLimit);
             }
         }
+    }
+
+    private function getWebroot(): string
+    {
+        $rawPath = $this->input->getArgument('path');
+        $webroot = \realpath($rawPath);
+        if ($webroot && \is_dir($webroot)) {
+            $webroot = \rtrim(\str_replace(\DIRECTORY_SEPARATOR, '/', $webroot), '/');
+        } else {
+            $webroot = '';
+        }
+        if ($webroot === '') {
+            throw new \Exception("Unable to find the directory {$rawPath}");
+        }
+
+        return $webroot;
+    }
+
+    private function getBaseVersion(string $webroot): ReflectedVersion
+    {
+        $parser = new Parser($this->getApplication()->getTemporaryDirectory());
+        $baseVersion = $parser->parse($webroot);
+
+        if (!$this->input->getOption('raw-name')) {
+            $m = null;
+            if (!\preg_match('/^(\d+(?:\.\d+)*)*/', $baseVersion->getName(), $m)) {
+                throw new \Exception("Failed to extract the version from {$baseVersion->getName()}");
+            }
+            $baseVersion->setName($m[1]);
+        }
+
+        return $baseVersion;
+    }
+
+    /**
+     * @return \MLocati\C5SinceTagger\Reflected\ReflectedVersion[]
+     */
+    private function getPreviousVersions(ReflectedVersion $baseVersion): array
+    {
+        $em = $this->getApplication()->getEntityManager();
+        $versionRepo = $em->getRepository(ReflectedVersion::class);
+        $previousVersions = [];
+        foreach ($versionRepo->findAll() as $otherVersion) {
+            if (\version_compare($otherVersion->getName(), $baseVersion->getName()) < 0) {
+                $previousVersions[] = $otherVersion;
+            }
+        }
+        if ($previousVersions === []) {
+            throw new \Exception("No parsed versions found that are older than {$baseVersion->getName()}");
+        }
+
+        return $previousVersions;
     }
 }
