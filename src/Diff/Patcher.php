@@ -53,15 +53,16 @@ class Patcher
         $tokens[$phpDocCommentIndex][1] = $this->applyPatchToPHPDoc($patch->getNewSince(), $tokens[$phpDocCommentIndex][1], $defaultEOL, $defaultIndentation);
     }
 
-    private function applyPatchToPHPDoc(string $since, string $phpDoc, string $defaultEOL, string $defaultIndentation): string
+    private function applyPatchToPHPDoc(string $since, string $phpDoc, string $defaultEOL, string $indentation): string
     {
         $m = null;
         $eol = $this->detectEOL($phpDoc, $defaultEOL);
         $lines = \explode("\n", \str_replace("\r", "\n", \str_replace("\r\n", "\n", $phpDoc)));
         $count = \count($lines);
+        $sinceLines = \preg_split('/[\r\n]+/', $since, -1, PREG_SPLIT_NO_EMPTY);
         for ($index = 0; $index < $count; $index++) {
             if (\preg_match('/^(.*)@since(?:.*?)(\s*\*\/)?$/', $lines[$index], $m)) {
-                if ($since === '') {
+                if ($sinceLines === []) {
                     $lines[$index] = $m[1] . ($m[2] ?? '');
                     if (\trim($lines[$index], " \t\0\x0B*") === '') {
                         \array_splice($lines, $index, 1);
@@ -69,25 +70,48 @@ class Patcher
                         $count--;
                     }
                 } else {
-                    $lines[$index] = $m[1] . "@since {$since}" . ($m[2] ?? '');
-                    $since = '';
+                    $first = true;
+                    for (;;) {
+                        $sinceLine = \array_shift($sinceLines);
+                        if ($sinceLine === null) {
+                            break;
+                        }
+                        if ($first === true) {
+                            $lines[$index] = $m[1] . "@since {$sinceLine}";
+                            $first = false;
+                        } else {
+                            $index++;
+                            array_splice($lines, $index, 0, "{$indentation} * @since {$sinceLine}");
+                            $count++;
+                        }
+                        if ($sinceLines === [] && isset($m[2])) {
+                            $lines[$index] .= $m[2];
+                        }
+                    }
                 }
             }
         }
-        if ($since !== '') {
+        if ($sinceLines !== []) {
             if ($count === 1) {
                 if (!\preg_match('_^(.*?)\s*(\*+/)$_', $lines[0], $m)) {
                     throw new \Exception('Invalid phpdoc');
                 }
-                $lines = [
-                    \rtrim($m[1]),
-                    "{$defaultIndentation} * @since {$since}",
-                    "{$defaultIndentation} " . \ltrim($m[2]),
-                ];
+                $lines = [\rtrim($m[1])];
+                foreach ($sinceLines as $sinceLine) {
+                    $lines[] = "{$indentation} * @since {$sinceLine}";
+                }
+                $lines[] = "{$indentation} " . \ltrim($m[2]);
             } else {
                 $p = \strpos($lines[1], '*');
-                $prefix = $p === false ? "{$defaultIndentation} *" : \substr($lines[1], 0, $p + 1);
-                \array_splice($lines, $count - 1, 0, "{$prefix} @since {$since}");
+                $prefix = $p === false ? "{$indentation} *" : \substr($lines[1], 0, $p + 1);
+                for (;;) {
+                    $sinceLine = \array_shift($sinceLines);
+                    if ($sinceLine === null) {
+                        break;
+                    }
+                    \array_splice($lines, $count - 1, 0, "{$prefix} @since {$sinceLine}");
+                    $count++;
+                }
             }
         }
 
