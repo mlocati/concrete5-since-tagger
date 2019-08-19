@@ -74,9 +74,9 @@ class FileLoader
      */
     public function loadFile($relpath)
     {
-        $needAliasFixes = $this->getFilesNeededAliasFixes($relpath);
-        if ($needAliasFixes !== null) {
-            $this->loadFileFixingAliases($relpath, $needAliasFixes);
+        $patches = $this->getFilePatches($relpath);
+        if ($patches !== null) {
+            $this->loadFileWithPatches($relpath, $patches);
         } else {
             require_once "{$this->webroot}/{$relpath}";
         }
@@ -89,47 +89,52 @@ class FileLoader
      *
      * @return string[]|null
      */
-    private function getFilesNeededAliasFixes($relpath)
+    private function getFilePatches($relpath)
     {
         switch ($relpath) {
             case 'concrete/controllers/backend/user_attributes.php':
                 if (\version_compare($this->version, '5.7.1') <= 0) {
-                    return ['User'];
+                    return ['use' => ['User']];
                 }
                 break;
             case 'concrete/controllers/dialog/block/edit.php':
                 if (\version_compare($this->version, '5.7.1') >= 0 && \version_compare($this->version, '5.7.5.13') <= 0) {
-                    return ['Concrete\Core\Cache\Cache'];
+                    return ['use' => ['Concrete\Core\Cache\Cache']];
                 }
                 break;
             case 'concrete/controllers/panel/sitemap.php':
                 if (\version_compare($this->version, '5.7.5.13') <= 0) {
-                    return ['Page'];
+                    return ['use' => ['Page']];
                 }
                 break;
             case 'concrete/controllers/single_page/dashboard/blocks/stacks.php':
                 if (\version_compare($this->version, '8.5.1') <= 0) {
-                    return ['Permissions'];
+                    return ['use' => ['Permissions']];
+                }
+                break;
+            case 'concrete/src/Attribute/ExpressSetManager.php':
+                if (\version_compare($this->version, '8.0.1') === 0) {
+                    return ['rx' => ['/^class ExpressSetManager\b/m' => 'abstract class ExpressSetManager']];
                 }
                 break;
             case 'concrete/src/Database/CharacterSetCollation/Manager.php':
                 if (\version_compare($this->version, '8.5.0') >= 0 && \version_compare($this->version, '8.5.0') <= 0) {
-                    return ['Exception'];
+                    return ['use' => ['Exception']];
                 }
                 break;
             case 'concrete/src/Import/Item/Express/Control/AttributeKeyControl.php':
                 if (\version_compare($this->version, '8.0.0') >= 0 && \version_compare($this->version, '8.0.2') <= 0) {
-                    return ['Concrete\Core\Entity\Express\Control\AssociationControl'];
+                    return ['use' => ['Concrete\Core\Entity\Express\Control\AssociationControl']];
                 }
                 break;
             case 'concrete/src/Page/Page.php':
                 if (\version_compare($this->version, '5.7.3') >= 0 && \version_compare($this->version, '5.7.3.1') <= 0) {
-                    return ['Concrete\Core\Multilingual\Page\Event'];
+                    return ['use' => ['Concrete\Core\Multilingual\Page\Event']];
                 }
                 break;
             case 'concrete/src/Permission/Registry/Entry/Access/Entity/EntityInterface.php':
                 if (\version_compare($this->version, '8.0.0') >= 0 && \version_compare($this->version, '8.0.2') <= 0) {
-                    return ['Concrete\Core\Permission\Access\Entity\Entity'];
+                    return ['use' => ['Concrete\Core\Permission\Access\Entity\Entity']];
                 }
                 break;
         }
@@ -139,9 +144,9 @@ class FileLoader
 
     /**
      * @param string $relpath
-     * @param string[] $aliasesToFix
+     * @param string[] $patches
      */
-    private function loadFileFixingAliases($relpath, array $aliasesToFix)
+    private function loadFileWithPatches($relpath, array $patches)
     {
         $abspath = "{$this->webroot}/{$relpath}";
         $originalContents = \file_get_contents($abspath);
@@ -149,39 +154,47 @@ class FileLoader
             throw new \Exception("Failed to read file {$relpath}");
         }
         $contents = \str_replace("\r\n", "\n", $originalContents);
-        $start1 = \strpos($contents, "\nclass ");
-        $start2 = \strpos($contents, "\ninterface ");
-        if ($start1 === false && $start2 === false) {
-            throw new \Exception("Failed to determine the beginning of a class/interface in {$relpath}");
-        }
-        if ($start1 !== false && $start2 !== false) {
-            throw new \Exception("Failed to determine the beginning of a class/interface in {$relpath}");
-        }
-        $classStart = $start1 === false ? $start2 : $start1;
-        $start1 = \strpos($contents, "\nclass ", $classStart + 1);
-        $start2 = \strpos($contents, "\ninterface ", $classStart + 1);
-        if ($start1 !== false || $start2 !== false) {
-            throw new \Exception("Failed to determine the beginning of a class/interface in {$relpath}");
-        }
-        $before = \substr($contents, 0, $classStart);
-        $after = \substr($contents, $classStart);
-        $m = null;
-        foreach ($aliasesToFix as $aliasToFix) {
-            if (\preg_match('/^.*\\\\(\w+)$/', $aliasToFix, $m)) {
-                $fqn = $aliasToFix;
-                $className = $m[1];
-            } else {
-                $fqn = '';
-                $className = $aliasToFix;
+        if (isset($patches['rx'])) {
+            foreach ($patches['rx'] as $search => $replace) {
+                $contents = \preg_replace($search, $replace, $contents);
             }
-            if ($fqn === '') {
-                $before = \preg_replace('/(\nuse ' . \preg_quote($className, '/') . ');/', '\1 as ' . $className . 'C5VT_REMOVE_ME;', $before);
-            } else {
-                $before = \preg_replace('/(\nuse ' . \preg_quote($fqn, '/') . ');/', '\1 as ' . $className . 'C5VT_REMOVE_ME;', $before);
-            }
-            $after = \preg_replace('/\b(' . \preg_quote($className, '/') . ')\b/', '\1C5VT_REMOVE_ME', $after);
         }
-        $this->getTempFileContentSetter()->setContent($abspath, $before . $after, $originalContents);
+        if (isset($patches['use'])) {
+            $start1 = \strpos($contents, "\nclass ");
+            $start2 = \strpos($contents, "\ninterface ");
+            if ($start1 === false && $start2 === false) {
+                throw new \Exception("Failed to determine the beginning of a class/interface in {$relpath}");
+            }
+            if ($start1 !== false && $start2 !== false) {
+                throw new \Exception("Failed to determine the beginning of a class/interface in {$relpath}");
+            }
+            $classStart = $start1 === false ? $start2 : $start1;
+            $start1 = \strpos($contents, "\nclass ", $classStart + 1);
+            $start2 = \strpos($contents, "\ninterface ", $classStart + 1);
+            if ($start1 !== false || $start2 !== false) {
+                throw new \Exception("Failed to determine the beginning of a class/interface in {$relpath}");
+            }
+            $before = \substr($contents, 0, $classStart);
+            $after = \substr($contents, $classStart);
+            $m = null;
+            foreach ($patches['use'] as $aliasToFix) {
+                if (\preg_match('/^.*\\\\(\w+)$/', $aliasToFix, $m)) {
+                    $fqn = $aliasToFix;
+                    $className = $m[1];
+                } else {
+                    $fqn = '';
+                    $className = $aliasToFix;
+                }
+                if ($fqn === '') {
+                    $before = \preg_replace('/(\nuse ' . \preg_quote($className, '/') . ');/', '\1 as ' . $className . 'C5VT_REMOVE_ME;', $before);
+                } else {
+                    $before = \preg_replace('/(\nuse ' . \preg_quote($fqn, '/') . ');/', '\1 as ' . $className . 'C5VT_REMOVE_ME;', $before);
+                }
+                $after = \preg_replace('/\b(' . \preg_quote($className, '/') . ')\b/', '\1C5VT_REMOVE_ME', $after);
+            }
+            $contents = $before . $after;
+        }
+        $this->getTempFileContentSetter()->setContent($abspath, $contents, $originalContents);
         try {
             require_once $abspath;
             $this->tempFileContentSetter->revert();

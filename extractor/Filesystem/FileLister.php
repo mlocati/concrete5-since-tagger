@@ -162,13 +162,6 @@ class FileLister
             case 'concrete/src/Support/.phpstorm.meta.php':
             case 'concrete/src/Support/__IDE_SYMBOLS__.php':
                 return false;
-            case 'concrete/src/Attribute/ExpressSetManager.php':
-                switch ($this->version) {
-                    case '8.0.1':
-                        // Class Concrete\Core\Attribute\ExpressSetManager contains 1 abstract method and must therefore be declared abstract or implement the remaining methods (Concrete\Core\Attribute\SetManagerInterface::updateAttributeSetDisplayOrder)
-                        return false;
-                }
-                break;
             case 'concrete/controllers/element/site/tree_selector.php':
                 switch ($this->version) {
                     case '8.2.0':

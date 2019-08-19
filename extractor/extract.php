@@ -56,11 +56,16 @@ if ($version === null) {
 }
 echo "{$version}\n";
 
+$serializer = new Serializer($version, $webroot);
+
 echo 'Loading all files... ';
 $count = (new Filesystem\FileLoader($webroot, $version))->loadAllFiles();
 echo "{$count} files loaded.\n";
 
-$serializer = new Serializer($version, $webroot);
+echo 'Loading aliases... ';
+list($count, $total) = $serializer->loadClassAliases();
+echo "{$count}/{$total} aliases loaded.\n";
+
 $serializedData = $serializer->serialize();
 
 echo 'Exporting data as a JSON file... ';

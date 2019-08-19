@@ -52,6 +52,31 @@ class Serializer
     }
 
     /**
+     * @return [int, int]
+     */
+    public function loadClassAliases()
+    {
+        $aliases = $this->getFacadeList() + $this->getClassAliasList();
+        $count = 0;
+        $total = \count($aliases);
+        foreach (\array_keys($aliases) as $aliasName) {
+            $skip = false;
+            switch ($aliasName) {
+                case 'PermissionCache':
+                    if (\version_compare($this->version, '5.7.2') >= 0 && \version_compare($this->version, '5.7.3.1') <= 0) {
+                        $skip = true;
+                    }
+                    break;
+            }
+            if ($skip === false && \class_exists($aliasName, true)) {
+                $count++;
+            }
+        }
+
+        return [$count, $total];
+    }
+
+    /**
      * @return \stdClass
      */
     public function serialize()
@@ -396,7 +421,11 @@ class Serializer
     {
         $result = $this->serializeICT($class);
         $result->final = $class->isFinal();
-        $result->abstract = $class->isAbstract();
+        if ($result->name === 'Concrete\Core\Attribute\ExpressSetManager' && $this->version === '8.0.1') {
+            $result->abstract = false;
+        } else {
+            $result->abstract = $class->isAbstract();
+        }
         $result->traits = [];
         $traitAliases = $class->getTraitAliases();
         foreach ($class->getTraitNames() as $traitName) {
