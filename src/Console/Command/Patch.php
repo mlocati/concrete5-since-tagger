@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace MLocati\C5SinceTagger\Console\Command;
 
 use MLocati\C5SinceTagger\Console\Command;
+use MLocati\C5SinceTagger\CoreVersion\VersionList;
 use MLocati\C5SinceTagger\Diff\Differ;
 use MLocati\C5SinceTagger\Diff\Patcher;
 use MLocati\C5SinceTagger\Parser;
@@ -34,6 +35,7 @@ class Patch extends Command
     {
         $webroot = $this->getWebroot();
         $baseVersion = $this->getBaseVersion($webroot);
+        $this->checkRequiredVersionsParset($baseVersion);
         $previousVersions = $this->getPreviousVersions($baseVersion);
 
         $this->output->writeln('Collecting patches');
@@ -105,6 +107,27 @@ class Patch extends Command
         }
 
         return $baseVersion;
+    }
+
+    private function checkRequiredVersionsParset(ReflectedVersion $baseVersion): void
+    {
+        $em = $this->getApplication()->getEntityManager();
+        $versionRepo = $em->getRepository(ReflectedVersion::class);
+        $missingVersions = [];
+        $versionList = new VersionList();
+        $em = $this->getApplication()->getEntityManager();
+        foreach ($versionList->getAvailableVersions() as $availableVersion) {
+            if (\preg_match('/^\d+(\.\d+)*$/', $availableVersion)) {
+                if (\version_compare($availableVersion, $baseVersion->getName()) < 0) {
+                    if ($versionRepo->findOneBy(['name' => $availableVersion]) === null) {
+                        $missingVersions[] = $availableVersion;
+                    }
+                }
+            }
+        }
+        if ($missingVersions !== []) {
+            throw new \Exception(\sprintf("In order to patch version %s, the following versions must have been analyzed:\n%s", $baseVersion->getName(), ' - ' . \implode("\n - ", $missingVersions)));
+        }
     }
 
     /**
