@@ -2,6 +2,8 @@
 
 namespace MLocati\C5SinceTagger\Extractor;
 
+use MLocati\C5SinceTagger\Extractor\Filesystem\TemporaryFileMap;
+
 if (!\defined('PHP_VERSION_ID') || \PHP_VERSION_ID < 50500) {
     \fprintf(\STDERR, 'Minimum supported PHP version is 5.5.0 (you are using ' . PHP_VERSION . ").\n");
     exit(1);
@@ -17,20 +19,24 @@ if (\defined('C5_EXECUTE')) {
     $scriptArguments = isset($argv) && \is_array($argv) ? $argv : [];
 }
 
-/* @var array $argv */
 if (!isset($scriptArguments[1]) || !\is_string($scriptArguments[1]) || $scriptArguments[1] === '') {
     \fprintf(STDERR, "Missing output file name\n");
     exit(1);
 }
 $outputFileName = $scriptArguments[1];
 
+if (!isset($scriptArguments[2]) || !\is_string($scriptArguments[2]) || $scriptArguments[2] === '' || !\is_dir($scriptArguments[2])) {
+    \fprintf(STDERR, "Missing temporary directory\n");
+    exit(1);
+}
+$temporaryDirectory = $scriptArguments[2];
+
 if (!\defined('C5_EXECUTE')) {
-    /* @var array $argv */
-    if (!isset($scriptArguments[2]) || !\is_string($scriptArguments[2]) || $scriptArguments[2] === '') {
+    if (!isset($scriptArguments[3]) || !\is_string($scriptArguments[3]) || $scriptArguments[3] === '') {
         \fprintf(STDERR, "Missing concrete5 webroot directory\n");
         exit(1);
     }
-    $webroot = $scriptArguments[2];
+    $webroot = $scriptArguments[3];
     if (!\is_dir($webroot)) {
         \fprintf(\STDERR, "Unable to find the directory {$webroot}\n");
         exit(1);
@@ -56,13 +62,14 @@ if ($version === null) {
 }
 echo "{$version}\n";
 
-$serializer = new Serializer($version, $webroot);
+$temporaryFileMap = new TemporaryFileMap($temporaryDirectory);
 
 echo 'Loading all files... ';
-$count = (new Filesystem\FileLoader($webroot, $version))->loadAllFiles();
+$count = (new Filesystem\FileLoader($webroot, $version, $temporaryFileMap))->loadAllFiles();
 echo "{$count} files loaded.\n";
 
 echo 'Loading aliases... ';
+$serializer = new Serializer($version, $webroot, $temporaryFileMap);
 list($count, $total) = $serializer->loadClassAliases();
 echo "{$count}/{$total} aliases loaded.\n";
 

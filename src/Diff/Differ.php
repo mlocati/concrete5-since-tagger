@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace MLocati\C5SinceTagger\Diff;
 
+use Doctrine\Common\Collections\Criteria;
 use MLocati\C5SinceTagger\Reflected\ReflectedClass;
 use MLocati\C5SinceTagger\Reflected\ReflectedInterface;
 use MLocati\C5SinceTagger\Reflected\ReflectedTrait;
@@ -11,6 +12,13 @@ use MLocati\C5SinceTagger\Reflected\ReflectedVersion;
 
 class Differ
 {
+    public const FLAG_ALL = -1;
+    public const FLAG_GLOBALCONSTANTS = 0b1;
+    public const FLAG_GLOBALFUNCTIONS = 0b10;
+    public const FLAG_INTERFACES = 0b100;
+    public const FLAG_CLASSES = 0b1000;
+    public const FLAG_TRAITS = 0b10000;
+
     /**
      * @var \MLocati\C5SinceTagger\Reflected\ReflectedVersion
      */
@@ -108,25 +116,35 @@ class Differ
         return $this;
     }
 
-    public function getPatches(): Patches
+    public function getPatches(int $flags = self::FLAG_ALL, string $start, string $end): Patches
     {
         $result = new Patches();
         if ($this->progressInitHandler !== null) {
             \call_user_func(
                 $this->progressInitHandler,
-                $this->baseVersion->getGlobalConstants()->count()
-                + $this->baseVersion->getGlobalFunctions()->count()
-                + $this->baseVersion->getInterfaces()->count()
-                + $this->baseVersion->getClasses()->count()
-                + $this->baseVersion->getTraits()->count()
+                0
+                + ($flags & self::FLAG_GLOBALCONSTANTS ? $this->baseVersion->getGlobalConstants()->count() : 0)
+                + ($flags & self::FLAG_GLOBALFUNCTIONS ? $this->baseVersion->getGlobalFunctions()->count() : 0)
+                + ($flags & self::FLAG_INTERFACES ? $this->baseVersion->getInterfaces()->count() : 0)
+                + ($flags & self::FLAG_CLASSES ? $this->baseVersion->getClasses()->count() : 0)
+                + ($flags & self::FLAG_TRAITS ? $this->baseVersion->getTraits()->count() : 0)
             );
         }
-        $this->analyzeGlobalConstants($result);
-        $this->analyzeGlobalFunctions($result);
-        $this->analyzeInterfaces($result);
-        $this->analyzeClasses($result);
-        $this->analyzeTraits($result);
-
+        if ($flags & self::FLAG_GLOBALCONSTANTS) {
+            $this->analyzeGlobalConstants($result, $start, $end);
+        }
+        if ($flags & self::FLAG_GLOBALFUNCTIONS) {
+            $this->analyzeGlobalFunctions($result, $start, $end);
+        }
+        if ($flags & self::FLAG_INTERFACES) {
+            $this->analyzeInterfaces($result, $start, $end);
+        }
+        if ($flags & self::FLAG_CLASSES) {
+            $this->analyzeClasses($result, $start, $end);
+        }
+        if ($flags & self::FLAG_TRAITS) {
+            $this->analyzeTraits($result, $start, $end);
+        }
         if ($this->progressCompletedHandler !== null) {
             \call_user_func($this->progressCompletedHandler);
         }
@@ -134,66 +152,94 @@ class Differ
         return $result;
     }
 
-    private function analyzeGlobalConstants(Patches $patches): void
+    private function analyzeGlobalConstants(Patches $patches, string $start, string $end): void
     {
+        $criteria = $this->getStartEndCriteria($start, $end);
         $baseMap = [];
         foreach ($this->baseVersion->getGlobalConstants() as $item) {
             $baseMap[$item->getName()] = $item;
         }
+        $baseMap = $this->filterBaseMap($baseMap, $start, $end, false);
         $previousMaps = [];
         foreach ($this->previousVersions as $index => $previousVersion) {
             $previousMaps[$index] = [];
-            foreach ($previousVersion->getGlobalConstants() as $item) {
+            $list = $criteria === null ? $previousVersion->getGlobalConstants() : $previousVersion->getGlobalConstants()->matching($criteria);
+            foreach ($list as $item) {
                 $previousMaps[$index][$item->getName()] = $item;
             }
         }
         $this->analyzeMaps($patches, $baseMap, $previousMaps);
     }
 
-    private function analyzeGlobalFunctions(Patches $patches): void
+    private function analyzeGlobalFunctions(Patches $patches, string $start, string $end): void
     {
+        $criteria = $this->getStartEndCriteria($start, $end);
         $baseMap = [];
         foreach ($this->baseVersion->getGlobalFunctions() as $item) {
             $baseMap[\strtolower($item->getName())] = $item;
         }
+        $baseMap = $this->filterBaseMap($baseMap, $start, $end, true);
         $previousMaps = [];
         foreach ($this->previousVersions as $index => $previousVersion) {
             $previousMaps[$index] = [];
-            foreach ($previousVersion->getGlobalFunctions() as $item) {
+            $list = $criteria === null ? $previousVersion->getGlobalFunctions() : $previousVersion->getGlobalFunctions()->matching($criteria);
+            foreach ($list as $item) {
                 $previousMaps[$index][\strtolower($item->getName())] = $item;
             }
         }
         $this->analyzeMaps($patches, $baseMap, $previousMaps);
     }
 
-    private function analyzeInterfaces(Patches $patches): void
+    private function analyzeInterfaces(Patches $patches, string $start, string $end): void
     {
-        $baseMap = $this->getInterfaceMap(null);
+        $baseMap = $this->getInterfaceMap(null, $start, $end);
         $previousMaps = [];
         foreach (\array_keys($this->previousVersions) as $index) {
-            $previousMaps[$index] = $this->getInterfaceMap($index);
+            $previousMaps[$index] = $this->getInterfaceMap($index, $start, $end);
         }
         $this->analyzeMaps($patches, $baseMap, $previousMaps);
     }
 
-    private function analyzeClasses(Patches $patches): void
+    private function analyzeClasses(Patches $patches, string $start, string $end): void
     {
-        $baseMap = $this->getClassMap(null);
+        $baseMap = $this->getClassMap(null, $start, $end);
         $previousMaps = [];
         foreach (\array_keys($this->previousVersions) as $index) {
-            $previousMaps[$index] = $this->getClassMap($index);
+            $previousMaps[$index] = $this->getClassMap($index, $start, $end);
         }
         $this->analyzeMaps($patches, $baseMap, $previousMaps);
     }
 
-    private function analyzeTraits(Patches $patches): void
+    private function analyzeTraits(Patches $patches, string $start, string $end): void
     {
-        $baseMap = $this->getTraitMap(null);
+        $baseMap = $this->getTraitMap(null, $start, $end);
         $previousMaps = [];
         foreach (\array_keys($this->previousVersions) as $index) {
-            $previousMaps[$index] = $this->getTraitMap($index);
+            $previousMaps[$index] = $this->getTraitMap($index, $start, $end);
         }
         $this->analyzeMaps($patches, $baseMap, $previousMaps);
+    }
+
+    private function filterBaseMap(array $baseMap, string $start, string $end, bool $keysInLowerCase): array
+    {
+        if ($start === '' && $end === '') {
+            return $baseMap;
+        }
+        echo "\nstart\n";
+        $result = [];
+        foreach ($baseMap as $key => $value) {
+            $firstLetter = $value->getFirstLetter();
+            if ($start !== '' && $firstLetter < $start) {
+                continue;
+            }
+            if ($end !== '' && $firstLetter > $end) {
+                continue;
+            }
+            $result[$key] = $value;
+        }
+        echo "\nend\n";
+
+        return $result;
     }
 
     private function analyzeMaps(Patches $patches, array $baseMap, array $previousMaps, ?string $parentSince = null): void
@@ -274,12 +320,11 @@ class Differ
         $result = [];
         foreach ($item->getConstants() as $child) {
             $result[$child->getName()] = $child;
-        }
-        $map = $this->getInterfaceMap(\array_search($item->getVersion(), $this->previousVersions, true));
-        foreach ($item->getParentInterfaces() as $parentConnection) {
-            $lowerCaseName = \strtolower($parentConnection->getName());
-            if (isset($map[$lowerCaseName])) {
-                $result += $this->expandInterfaceConstants($map[$lowerCaseName]);
+            foreach ($item->getParentInterfaces() as $parentConnection) {
+                $interface = $this->findPreviousInterfaceByName($item->getVersion(), $parentConnection->getName());
+                if ($interface !== null) {
+                    $result += $this->expandInterfaceConstants($interface);
+                }
             }
         }
 
@@ -292,18 +337,16 @@ class Differ
         foreach ($item->getConstants() as $child) {
             $result[$child->getName()] = $child;
         }
-        $map = $this->getInterfaceMap(\array_search($item->getVersion(), $this->previousVersions, true));
         foreach ($item->getInterfaces() as $parentConnection) {
-            $lowerCaseName = \strtolower($parentConnection->getInterface());
-            if (isset($map[$lowerCaseName])) {
-                $result += $this->expandInterfaceConstants($map[$lowerCaseName]);
+            $interface = $this->findPreviousInterfaceByName($item->getVersion(), $parentConnection->getInterface());
+            if ($interface !== null) {
+                $result += $this->expandInterfaceConstants($interface);
             }
         }
         if ($item->getParentClassName() !== '') {
-            $map = $this->getClassMap(\array_search($item->getVersion(), $this->previousVersions, true));
-            $lowerCaseName = \strtolower($item->getParentClassName());
-            if (isset($map[$lowerCaseName])) {
-                $result += $this->expandClassConstants($map[$lowerCaseName]);
+            $class = $this->findPreviousClassByName($item->getVersion(), $item->getParentClassName());
+            if ($class !== null) {
+                $result += $this->expandClassConstants($class);
             }
         }
 
@@ -349,18 +392,16 @@ class Differ
         foreach ($item->getProperties() as $child) {
             $result[$child->getName()] = $child;
         }
-        $map = $this->getTraitMap(\array_search($item->getVersion(), $this->previousVersions, true));
         foreach ($item->getTraits() as $child) {
-            $lowerCaseName = \strtolower($child->getTrait());
-            if (isset($map[$lowerCaseName])) {
-                $result += $this->expandTraitProperties($map[$lowerCaseName]);
+            $trait = $this->findPreviousTraitByName($item->getVersion(), $child->getTrait());
+            if ($trait !== null) {
+                $result += $this->expandTraitProperties($trait);
             }
         }
         if ($item->getParentClassName() !== '') {
-            $map = $this->getClassMap(\array_search($item->getVersion(), $this->previousVersions, true));
-            $lowerCaseName = \strtolower($item->getParentClassName());
-            if (isset($map[$lowerCaseName])) {
-                $result += $this->expandClassProperties($map[$lowerCaseName]);
+            $class = $this->findPreviousClassByName($item->getVersion(), $item->getParentClassName());
+            if ($class !== null) {
+                $result += $this->expandClassProperties($class);
             }
         }
 
@@ -419,11 +460,10 @@ class Differ
         foreach ($item->getMethods() as $child) {
             $result[\strtolower($child->getName())] = $child;
         }
-        $map = $this->getInterfaceMap(\array_search($item->getVersion(), $this->previousVersions, true));
         foreach ($item->getParentInterfaces() as $parentConnection) {
-            $lowerCaseName = \strtolower($parentConnection->getName());
-            if (isset($map[$lowerCaseName])) {
-                $result += $this->expandInterfaceMethods($map[$lowerCaseName]);
+            $interface = $this->findPreviousInterfaceByName($item->getVersion(), $parentConnection->getName());
+            if ($interface !== null) {
+                $result += $this->expandInterfaceMethods($interface);
             }
         }
 
@@ -436,11 +476,10 @@ class Differ
         foreach ($item->getMethods() as $child) {
             $result[\strtolower($child->getName())] = $child;
         }
-        $map = $this->getTraitMap(\array_search($item->getVersion(), $this->previousVersions, true));
         foreach ($item->getTraits() as $child) {
-            $lowerCaseName = \strtolower($child->getTrait());
-            if (isset($map[$lowerCaseName])) {
-                $traitResult = $this->expandTraitMethods($map[$lowerCaseName]);
+            $trait = $this->findPreviousTraitByName($item->getVersion(), $child->getTrait());
+            if ($trait !== null) {
+                $traitResult = $this->expandTraitMethods($trait);
                 foreach ($child->getAliases() as $alias) {
                     $key = \strtolower($alias->getOriginalName());
                     if (isset($traitResult[$key])) {
@@ -453,10 +492,9 @@ class Differ
             }
         }
         if ($item->getParentClassName() !== '') {
-            $map = $this->getClassMap(\array_search($item->getVersion(), $this->previousVersions, true));
-            $lowerCaseName = \strtolower($item->getParentClassName());
-            if (isset($map[$lowerCaseName])) {
-                $result += $this->expandClassMethods($map[$lowerCaseName]);
+            $class = $this->findPreviousClassByName($item->getVersion(), $item->getParentClassName());
+            if ($class !== null) {
+                $result += $this->expandClassMethods($class);
             }
         }
 
@@ -473,13 +511,15 @@ class Differ
         return $result;
     }
 
-    private function getInterfaceMap(?int $versionIndex): array
+    private function getInterfaceMap(?int $versionIndex, string $start = '', string $end = ''): array
     {
-        $key = (string) $versionIndex;
+        $key = ((string) $versionIndex) . '|' . $start . '|' . $end;
         if (!isset($this->interfaceMaps[$key])) {
             $map = [];
             $version = $versionIndex === null ? $this->baseVersion : $this->previousVersions[$versionIndex];
-            foreach ($version->getInterfaces() as $item) {
+            $criteria = $this->getStartEndCriteria($start, $end);
+            $list = $criteria === null ? $version->getInterfaces() : $version->getInterfaces()->matching($criteria);
+            foreach ($list as $item) {
                 $map[\strtolower($item->getName())] = $item;
             }
             $this->interfaceMaps[$key] = $map;
@@ -488,17 +528,29 @@ class Differ
         return $this->interfaceMaps[$key];
     }
 
-    private function getClassMap(?int $versionIndex): array
+    private function findPreviousInterfaceByName(ReflectedVersion $previousVersion, string $name): ?ReflectedInterface
     {
-        $key = (string) $versionIndex;
+        $key = ((string) \array_search($previousVersion, $this->previousVersions, true)) . '||';
+        if (isset($this->interfaceMaps[$key])) {
+            return $this->interfaceMaps[$key][\strtolower($name)] ?? null;
+        }
+        $criteria = Criteria::create()->andWhere(Criteria::expr()->eq('name', $name))->setMaxResults(1);
+
+        return $previousVersion->getInterfaces()->matching($criteria)->first() ?: null;
+    }
+
+    private function getClassMap(?int $versionIndex, string $start = '', string $end = ''): array
+    {
+        $key = ((string) $versionIndex) . '|' . $start . '|' . $end;
         if (!isset($this->classMaps[$key])) {
             $map = [];
             $version = $versionIndex === null ? $this->baseVersion : $this->previousVersions[$versionIndex];
-
+            $criteria = $this->getStartEndCriteria($start, $end);
             foreach ($version->getClassAliases() as $item) {
                 $map[\strtolower($item->getAlias())] = $item->getActualClass();
             }
-            foreach ($version->getClasses() as $item) {
+            $list = $criteria === null ? $version->getClasses() : $version->getClasses()->matching($criteria);
+            foreach ($list as $item) {
                 $map[\strtolower($item->getName())] = $item;
             }
             $this->classMaps[$key] = $map;
@@ -507,19 +559,52 @@ class Differ
         return $this->classMaps[$key];
     }
 
-    private function getTraitMap(?int $versionIndex): array
+    private function findPreviousClassByName(ReflectedVersion $previousVersion, string $name): ?ReflectedClass
     {
-        $key = (string) $versionIndex;
+        $key = ((string) \array_search($previousVersion, $this->previousVersions, true)) . '||';
+        if (isset($this->classMaps[$key])) {
+            return $this->classMaps[$key][\strtolower($name)] ?? null;
+        }
+        $criteria = Criteria::create()->andWhere(Criteria::expr()->eq('name', $name))->setMaxResults(1);
+        $class = $previousVersion->getClasses()->matching($criteria)->first() ?: null;
+        if ($class !== null) {
+            return $class;
+        }
+        $criteria = Criteria::create()->andWhere(Criteria::expr()->eq('alias', $name))->setMaxResults(1);
+        $alias = $previousVersion->getClassAliases()->matching($criteria)->first() ?: null;
+        if ($alias !== null) {
+            return $alias->getActualClass();
+        }
+
+        return null;
+    }
+
+    private function getTraitMap(?int $versionIndex, string $start = '', string $end = ''): array
+    {
+        $key = ((string) $versionIndex) . '|' . $start . '|' . $end;
         if (!isset($this->traitMaps[$key])) {
             $map = [];
             $version = $versionIndex === null ? $this->baseVersion : $this->previousVersions[$versionIndex];
-            foreach ($version->getTraits() as $item) {
+            $criteria = $this->getStartEndCriteria($start, $end);
+            $list = $criteria === null ? $version->getTraits() : $version->getTraits()->matching($criteria);
+            foreach ($list as $item) {
                 $map[\strtolower($item->getName())] = $item;
             }
             $this->traitMaps[$key] = $map;
         }
 
         return $this->traitMaps[$key];
+    }
+
+    private function findPreviousTraitByName(ReflectedVersion $previousVersion, string $name): ?ReflectedTrait
+    {
+        $key = ((string) \array_search($previousVersion, $this->previousVersions, true)) . '||';
+        if (isset($this->traitMaps[$key])) {
+            return $this->traitMaps[$key][\strtolower($name)] ?? null;
+        }
+        $criteria = Criteria::create()->andWhere(Criteria::expr()->eq('name', $name))->setMaxResults(1);
+
+        return $previousVersion->getTraits()->matching($criteria)->first() ?: null;
     }
 
     private function getDiffGroups(array $prevItems): DiffGroupList
@@ -536,5 +621,21 @@ class Differ
         $diffGroupList->add(DiffGroup::TYPE_CORE, $this->baseVersion);
 
         return $diffGroupList;
+    }
+
+    private function getStartEndCriteria(string $start, string $end): ?Criteria
+    {
+        if ($start === '' && $end === '') {
+            return null;
+        }
+        $criteria = Criteria::create();
+        if ($start !== '') {
+            $criteria->andWhere(Criteria::expr()->gte('firstLetter', $start));
+        }
+        if ($end !== '') {
+            $criteria->andWhere(Criteria::expr()->lte('firstLetter', $end));
+        }
+
+        return $criteria;
     }
 }

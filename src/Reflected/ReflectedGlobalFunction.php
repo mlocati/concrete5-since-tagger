@@ -14,6 +14,9 @@ use Doctrine\Common\Collections\Collection;
  * )
  * @\Doctrine\ORM\Mapping\Table(
  *     name="GlobalFunctions",
+ *     indexes={
+ *         @Index(name="GlobalFunctions_firstLetter", columns={"firstLetter"})
+ *     },
  *     uniqueConstraints={
  *         @\Doctrine\ORM\Mapping\UniqueConstraint(
  *             name="GlobalFunctions_version_name",

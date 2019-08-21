@@ -25,11 +25,17 @@ class Parser
      */
     private $versionDetector;
 
+    /**
+     * @var \MLocati\C5SinceTagger\Filesystem
+     */
+    private $fs;
+
     public function __construct(string $temporaryDirectory, Unserializer $unserializer = null, VersionDetector $versionDetector = null)
     {
         $this->temporaryDirectory = $temporaryDirectory;
         $this->unserializer = $unserializer ?: new Unserializer();
         $this->versionDetector = $versionDetector ?: new VersionDetector();
+        $this->fs = new Filesystem();
     }
 
     public function parse(string $webroot): ReflectedVersion
@@ -45,7 +51,10 @@ class Parser
 
             return $this->unserializer->unserializeJsonFile($jsonFile);
         } finally {
-            @\unlink($jsonFile);
+            try {
+                $this->fs->deleteFile($jsonFile);
+            } catch (\Throwable $x) {
+            }
         }
     }
 
@@ -69,6 +78,7 @@ class Parser
             $cmd .= ' ' . $extractor;
         }
         $cmd .= ' ' . \escapeshellarg($jsonFile);
+        $cmd .= ' ' . \escapeshellarg($this->temporaryDirectory);
         if (!$useC5Exec) {
             $cmd .= ' ' . \escapeshellarg($webroot);
         }

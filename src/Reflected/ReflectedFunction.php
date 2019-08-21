@@ -6,6 +6,7 @@ namespace MLocati\C5SinceTagger\Reflected;
 
 use Doctrine\Common\Collections\Collection;
 use MLocati\C5SinceTagger\Traits\DefinedAtTrait;
+use MLocati\C5SinceTagger\Traits\IndexedNameTrait;
 use MLocati\C5SinceTagger\Traits\RecordIDTrait;
 
 /**
@@ -15,14 +16,7 @@ abstract class ReflectedFunction
 {
     use RecordIDTrait;
 
-    /**
-     * The name of the function.
-     *
-     * @\Doctrine\ORM\Mapping\Column(type="string", length=100, nullable=false, options={"comment": "Name of the function"})
-     *
-     * @var string
-     */
-    protected $name;
+    use IndexedNameTrait;
 
     /**
      * The return value is by reference?
@@ -83,30 +77,6 @@ abstract class ReflectedFunction
         ;
 
         return $result;
-    }
-
-    /**
-     * Get the name of the function/method.
-     *
-     * @return string
-     */
-    public function getName(): string
-    {
-        return $this->name;
-    }
-
-    /**
-     * Set the name of the function/method.
-     *
-     * @param string $value
-     *
-     * @return $this
-     */
-    public function setName(string $value): self
-    {
-        $this->name = $value;
-
-        return $this;
     }
 
     /**

@@ -7,6 +7,7 @@ namespace MLocati\C5SinceTagger\Reflected;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use MLocati\C5SinceTagger\Traits\DefinedAtTrait;
+use MLocati\C5SinceTagger\Traits\IndexedNameTrait;
 use MLocati\C5SinceTagger\Traits\RecordIDTrait;
 
 /**
@@ -16,6 +17,9 @@ use MLocati\C5SinceTagger\Traits\RecordIDTrait;
  * )
  * @\Doctrine\ORM\Mapping\Table(
  *     name="Interfaces",
+ *     indexes={
+ *         @Index(name="Interfaces_firstLetter", columns={"firstLetter"})
+ *     },
  *     uniqueConstraints={
  *         @\Doctrine\ORM\Mapping\UniqueConstraint(
  *             name="Interfaces_version_name",
@@ -41,14 +45,7 @@ class ReflectedInterface
      */
     protected $version;
 
-    /**
-     * The name of the interface.
-     *
-     * @\Doctrine\ORM\Mapping\Column(type="string", length=190, nullable=false, options={"comment": "Name of the interface"})
-     *
-     * @var string
-     */
-    protected $name;
+    use IndexedNameTrait;
 
     /**
      * The parent interfaces extended by this interface.
@@ -128,30 +125,6 @@ class ReflectedInterface
     public function setVersion(ReflectedVersion $value): self
     {
         $this->version = $value;
-
-        return $this;
-    }
-
-    /**
-     * Get the name of the interface.
-     *
-     * @return string
-     */
-    public function getName(): string
-    {
-        return $this->name;
-    }
-
-    /**
-     * Set the name of the interface.
-     *
-     * @param string $value
-     *
-     * @return $this
-     */
-    public function setName(string $value): self
-    {
-        $this->name = $value;
 
         return $this;
     }

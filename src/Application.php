@@ -31,6 +31,7 @@ class Application extends SymfonyApplication
         $this->add(new Command\Update($this));
         $this->add(new Command\Parse($this));
         $this->add(new Command\Patch($this));
+        $this->add(new Command\CollectPatches($this));
         foreach (ConsoleRunner::createHelperSet($this->getEntityManager()) as $key => $helper) {
             $this->getHelperSet()->set($helper, $key);
         }

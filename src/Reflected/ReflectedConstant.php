@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace MLocati\C5SinceTagger\Reflected;
 
+use MLocati\C5SinceTagger\Traits\IndexedNameTrait;
 use MLocati\C5SinceTagger\Traits\JsonTrait;
 use MLocati\C5SinceTagger\Traits\RecordIDTrait;
 
@@ -14,14 +15,7 @@ abstract class ReflectedConstant
 {
     use RecordIDTrait;
 
-    /**
-     * The name of the constant.
-     *
-     * @\Doctrine\ORM\Mapping\Column(type="string", length=100, nullable=false, options={"comment": "Name of the constant"})
-     *
-     * @var string
-     */
-    protected $name;
+    use IndexedNameTrait;
 
     /**
      * The JSON-encoded value of the constant.
@@ -56,30 +50,6 @@ abstract class ReflectedConstant
         ;
 
         return $result;
-    }
-
-    /**
-     * Get the name of the constant.
-     *
-     * @return string
-     */
-    public function getName(): string
-    {
-        return $this->name;
-    }
-
-    /**
-     * Set the name of the constant.
-     *
-     * @param string $value
-     *
-     * @return $this
-     */
-    public function setName(string $value): self
-    {
-        $this->name = $value;
-
-        return $this;
     }
 
     /**

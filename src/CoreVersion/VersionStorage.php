@@ -6,6 +6,7 @@ namespace MLocati\C5SinceTagger\CoreVersion;
 
 use Exception;
 use GuzzleHttp\Client;
+use MLocati\C5SinceTagger\Filesystem;
 use Symfony\Component\Console\Output\NullOutput;
 use Symfony\Component\Console\Output\OutputInterface;
 use Throwable;
@@ -28,16 +29,20 @@ class VersionStorage
     private $output;
 
     /**
+     * @var \MLocati\C5SinceTagger\Filesystem
+     */
+    private $fs;
+
+    /**
      * @param string $temporaryDirectory the parent temporary directory, with '/' as directory separator, without leading '/'
      */
     public function __construct(string $temporaryDirectory, OutputInterface $output = null)
     {
+        $this->fs = new Filesystem();
         $this->output = $output ?: new NullOutput();
         $this->temporaryDirectory = $temporaryDirectory;
         $this->versionsDirectory = "{$this->temporaryDirectory}/versions";
-        if (!\is_dir($this->versionsDirectory)) {
-            @\mkdir($this->versionsDirectory);
-        }
+        $this->fs->ensureDirectory($this->versionsDirectory);
     }
 
     public function ensure(string $version, string $remoteUrl, bool $force = false): string
@@ -56,14 +61,14 @@ class VersionStorage
         try {
             $this->finalizeDirectory($tempDir);
             if (\is_dir($dir)) {
-                $this->removeDirectory($dir);
+                $this->fs->deleteDirectory($dir);
             }
-            \rename($tempDir, $dir);
+            $this->fs->rename($tempDir, $dir);
             $tempDir = null;
         } finally {
             if ($tempDir !== null) {
                 try {
-                    $this->removeDirectory($tempDir);
+                    $this->fs->deleteDirectory($tempDir);
                 } catch (Throwable $x) {
                 }
             }
@@ -75,54 +80,16 @@ class VersionStorage
         return "{$this->versionsDirectory}/{$version}";
     }
 
-    private function removeDirectory(string $dir): bool
-    {
-        $hdir = \opendir($dir);
-        if (!$hdir) {
-            return false;
-        }
-        $subdirs = [];
-        try {
-            while (($item = \readdir($hdir)) !== false) {
-                if ($item !== '.' && $item !== '..') {
-                    $itemPath = "{$dir}/{$item}";
-                    if (\is_dir($itemPath)) {
-                        $subdirs[] = $itemPath;
-                    } else {
-                        if (!@\unlink($itemPath)) {
-                            if (!@\unlink($itemPath)) {
-                                if (!@\unlink($itemPath)) {
-                                    return false;
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        } finally {
-            \closedir($hdir);
-        }
-        foreach ($subdirs as $subdir) {
-            $this->removeDirectory($subdir);
-        }
-        if (!@\rmdir($dir)) {
-            if (!@\rmdir($dir)) {
-                if (!@\rmdir($dir)) {
-                    return false;
-                }
-            }
-        }
-
-        return true;
-    }
-
     private function fetchAndExtractVersion(string $remoteUrl): string
     {
         $zipFile = $this->fetchVersion($remoteUrl);
         try {
             return $this->extractVersion($zipFile);
         } finally {
-            \unlink($zipFile);
+            try {
+                $this->fs->deleteFile($zipFile);
+            } catch (Throwable $x) {
+            }
         }
     }
 
@@ -159,8 +126,10 @@ class VersionStorage
             }
         } finally {
             if ($tempFile !== null) {
-                \unlink($tempFile);
-                $tempFile = null;
+                try {
+                    $this->fs->deleteFile($tempFile);
+                } catch (Throwable $x) {
+                }
             }
         }
     }
@@ -199,7 +168,7 @@ class VersionStorage
         } finally {
             if ($dir !== null) {
                 try {
-                    $this->deleteDirectory($dir);
+                    $this->fs->deleteDirectory($dir);
                 } catch (Throwable $x) {
                 }
             }
@@ -236,7 +205,7 @@ class VersionStorage
         for ($i = 0;; ++$i) {
             $newDir = "{$this->temporaryDirectory}/unzipped_renamed_{$i}";
             if (!\file_exists($newDir) && @\rename($singleDir, $newDir)) {
-                @\rmdir($dir);
+                $this->fs->deleteDirectory($dir);
 
                 return $newDir;
             }

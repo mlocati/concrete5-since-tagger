@@ -2,6 +2,8 @@
 
 namespace MLocati\C5SinceTagger\Extractor;
 
+use MLocati\C5SinceTagger\Extractor\Filesystem\TemporaryFileMap;
+
 class Serializer
 {
     /**
@@ -18,6 +20,11 @@ class Serializer
      * @var string
      */
     private $webroot;
+
+    /**
+     * @var \MLocati\C5SinceTagger\Extractor\Filesystem\TemporaryFileMap
+     */
+    private $temporaryFileMap;
 
     /**
      * @var array|null
@@ -42,16 +49,20 @@ class Serializer
     /**
      * @param string $version
      * @param string $webroot
+     * @param \MLocati\C5SinceTagger\Extractor\Filesystem\TemporaryFileMap $temporaryFileMap
      */
-    public function __construct($version, $webroot)
+    public function __construct($version, $webroot, TemporaryFileMap $temporaryFileMap)
     {
         $this->version = $version;
         $this->webroot = $webroot;
+        $this->temporaryFileMap = $temporaryFileMap;
         $this->phpDocExtractor = new PhpDoc\Extractor();
         $this->phpDocTokenExtractor = new PhpDoc\TokenExtractor($this->webroot, $this->phpDocExtractor);
     }
 
     /**
+     * @param array $temporaryFileMap
+     *
      * @return [int, int]
      */
     public function loadClassAliases()
@@ -729,7 +740,6 @@ class Serializer
     private function finalizeICConstants(\ReflectionClass $ic, array $constants)
     {
         $tokens = $this->getRootICTUsefulTokens($ic);
-        $normalizedFilename = \str_replace(\DIRECTORY_SEPARATOR, '/', \substr($ic->getFileName(), \strlen($this->webroot) + 1));
         foreach ($tokens as $index => $token) {
             if (\is_array($token) && $token[0] === T_CONST && isset($tokens[$index + 2]) && $tokens[$index + 2] === '=' && \is_array($tokens[$index + 1]) && $tokens[$index + 1][0] === T_STRING) {
                 $constantName = $tokens[$index + 1][1];
@@ -742,7 +752,7 @@ class Serializer
                 foreach ($constants as $constant) {
                     if ($constant->name === $constantName) {
                         if ($constant->definedAt === '') {
-                            $constant->definedAt = $normalizedFilename . ':' . $line;
+                            $constant->definedAt = $this->normalizeDefinedAt($ic->getFileName(), $line);
                             $this->phpDocTokenExtractor->queue($constant);
                         }
                         break;
@@ -821,7 +831,6 @@ class Serializer
             return;
         }
         $tokens = $this->getRootICTUsefulTokens($ct);
-        $normalizedFilename = \str_replace(\DIRECTORY_SEPARATOR, '/', \substr($ct->getFileName(), \strlen($this->webroot) + 1));
         $count = \count($tokens);
         $parenthesis = 0;
         for ($index = 0; $index < $count; $index++) {
@@ -848,7 +857,7 @@ class Serializer
             $propertyName = \ltrim($token[1], '$');
             foreach ($properties as $property) {
                 if ($property->name === $propertyName) {
-                    $property->definedAt = $normalizedFilename . ':' . $line;
+                    $property->definedAt = $this->normalizeDefinedAt($ct->getFileName(), $line);
                     break;
                 }
             }
@@ -936,24 +945,27 @@ class Serializer
     }
 
     /**
-     * @param string|null $filename
-     * @param int|null $line
+     * @param string $absoluteFilename
+     * @param int $line
      *
      * @return string
      */
-    private function normalizeDefinedAt($filename, $line)
+    private function normalizeDefinedAt($absoluteFilename, $line)
     {
-        $filename = \str_replace(\DIRECTORY_SEPARATOR, '/', (string) $filename);
-        if (\strpos($filename, "{$this->webroot}/") !== 0) {
-            return '';
+        $relativeName = $this->temporaryFileMap->getMapped($absoluteFilename);
+        if ($relativeName === '') {
+            $absoluteFilename = \str_replace(\DIRECTORY_SEPARATOR, '/', (string) $absoluteFilename);
+            if (\strpos($absoluteFilename, "{$this->webroot}/") !== 0) {
+                throw new \Exception("Failed to normalize path to file {$absoluteFilename}");
+            }
+            $relativeName = \substr($absoluteFilename, \strlen($this->webroot) + 1);
         }
-        $result = \substr($filename, \strlen($this->webroot) + 1);
         $line = (int) $line;
-        if ($line > 0) {
-            $result .= ':' . $line;
+        if ($line < 1) {
+            throw new \Exception("Failed to normalize line of file {$absoluteFilename}");
         }
 
-        return $result;
+        return "{$relativeName}:{$line}";
     }
 
     /**

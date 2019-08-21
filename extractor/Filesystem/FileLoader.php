@@ -15,30 +15,20 @@ class FileLoader
     private $version;
 
     /**
-     * @var \MLocati\C5SinceTagger\Extractor\Filesystem\TempFileContentSetter|null
+     * @var \MLocati\C5SinceTagger\Extractor\Filesystem\TemporaryFileMap
      */
-    private $tempFileContentSetter;
+    private $temporaryFileMap;
 
     /**
      * @param string $webroot normalized path to the webroot
      * @param string $version the actual core version
+     * @param \MLocati\C5SinceTagger\Extractor\Filesystem\TemporaryFileMap $temporaryFileMap
      */
-    public function __construct($webroot, $version)
+    public function __construct($webroot, $version, TemporaryFileMap $temporaryFileMap)
     {
         $this->webroot = $webroot;
         $this->version = $version;
-    }
-
-    /**
-     * @return \MLocati\C5SinceTagger\Extractor\Filesystem\TempFileContentSetter
-     */
-    private function getTempFileContentSetter()
-    {
-        if ($this->tempFileContentSetter === null) {
-            $this->tempFileContentSetter = new TempFileContentSetter();
-        }
-
-        return $this->tempFileContentSetter;
+        $this->temporaryFileMap = $temporaryFileMap;
     }
 
     /**
@@ -59,12 +49,11 @@ class FileLoader
         }
         $fileLister = new FileLister($this->webroot, $this->version);
         $count = 0;
+
         foreach ($fileLister->listFiles(true) as $file) {
             $this->loadFile($file);
             $count++;
         }
-
-        return $count;
     }
 
     /**
@@ -72,11 +61,13 @@ class FileLoader
      *
      * @return bool
      */
-    public function loadFile($relpath)
+    private function loadFile($relpath)
     {
         $patches = $this->getFilePatches($relpath);
         if ($patches !== null) {
-            $this->loadFileWithPatches($relpath, $patches);
+            if (!$this->temporaryFileMap->isMapped($relpath)) {
+                $this->loadFileWithPatches($relpath, $patches);
+            }
         } else {
             require_once "{$this->webroot}/{$relpath}";
         }
@@ -194,16 +185,18 @@ class FileLoader
             }
             $contents = $before . $after;
         }
-        $this->getTempFileContentSetter()->setContent($abspath, $contents, $originalContents);
-        try {
-            require_once $abspath;
-            $this->tempFileContentSetter->revert();
-        } catch (\Exception $x) {
-            $this->tempFileContentSetter->revert();
-            throw $x;
-        } catch (\Throwable $x) {
-            $this->tempFileContentSetter->revert();
-            throw $x;
+        $tempFile = $this->temporaryFileMap->add($relpath);
+        if (\file_put_contents($tempFile, $contents) === false) {
+            throw new \Exception('Failed to write to a temporary file');
         }
+        $this->loadPatchedFile($tempFile);
+    }
+
+    /**
+     * @param string $path
+     */
+    private function loadPatchedFile($path)
+    {
+        require_once $path;
     }
 }

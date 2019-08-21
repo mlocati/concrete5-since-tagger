@@ -7,6 +7,7 @@ namespace MLocati\C5SinceTagger\Reflected;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use MLocati\C5SinceTagger\Traits\DefinedAtTrait;
+use MLocati\C5SinceTagger\Traits\IndexedNameTrait;
 use MLocati\C5SinceTagger\Traits\RecordIDTrait;
 
 /**
@@ -16,6 +17,9 @@ use MLocati\C5SinceTagger\Traits\RecordIDTrait;
  * )
  * @\Doctrine\ORM\Mapping\Table(
  *     name="Classes",
+ *     indexes={
+ *         @Index(name="Classes_firstLetter", columns={"firstLetter"})
+ *     },
  *     uniqueConstraints={
  *         @\Doctrine\ORM\Mapping\UniqueConstraint(
  *             name="Classes_version_name",
@@ -40,15 +44,6 @@ class ReflectedClass
      * @var \MLocati\C5SinceTagger\Reflected\ReflectedVersion
      */
     protected $version;
-
-    /**
-     * The name of the class.
-     *
-     * @\Doctrine\ORM\Mapping\Column(type="string", length=190, nullable=false, options={"comment": "Name of the class"})
-     *
-     * @var string
-     */
-    protected $name;
 
     /**
      * Is this class abstract?
@@ -133,6 +128,8 @@ class ReflectedClass
 
     use DefinedAtTrait;
 
+    use IndexedNameTrait;
+
     protected function __construct()
     {
         $this->interfaces = new ArrayCollection();
@@ -187,30 +184,6 @@ class ReflectedClass
     public function setVersion(ReflectedVersion $value): self
     {
         $this->version = $value;
-
-        return $this;
-    }
-
-    /**
-     * Get the name of the class.
-     *
-     * @return string
-     */
-    public function getName(): string
-    {
-        return $this->name;
-    }
-
-    /**
-     * Set the name of the class.
-     *
-     * @param string $value
-     *
-     * @return $this
-     */
-    public function setName(string $value): self
-    {
-        $this->name = $value;
 
         return $this;
     }

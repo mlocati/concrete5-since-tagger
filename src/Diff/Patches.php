@@ -38,6 +38,22 @@ class Patches
     }
 
     /**
+     * @param \MLocati\C5SinceTagger\Diff\Patches $patches
+     *
+     * @return $this
+     */
+    public function merge(self $patches): self
+    {
+        foreach ($patches->getFiles() as $file) {
+            foreach ($patches->getFilePatches($file) as $patch) {
+                $this->add($patch);
+            }
+        }
+
+        return $this;
+    }
+
+    /**
      * Get the list of files to be patched.
      *
      * @return string[]

@@ -13,6 +13,9 @@ use MLocati\C5SinceTagger\Traits\DefinedAtTrait;
  * )
  * @\Doctrine\ORM\Mapping\Table(
  *     name="GlobalConstants",
+ *     indexes={
+ *         @Index(name="GlobalConstants_firstLetter", columns={"firstLetter"})
+ *     },
  *     uniqueConstraints={
  *         @\Doctrine\ORM\Mapping\UniqueConstraint(
  *             name="GlobalConstants_version_name",
