@@ -34,3 +34,8 @@ The process implement requires these steps:
 # Patch the development version
 ./bin/concrete5-since-tagger patch /path/to/concrete5
 ```
+
+## Ready-to-use data
+
+The `update` command is a really time-consuming process: it needs to download and parse all the concrete5 releases.
+If you don't want to do that, you can pre-populate the database with [this SQL dump](https://raw.githubusercontent.com/mlocati/concrete5-since-tagger/data/sql-dump.7z).
