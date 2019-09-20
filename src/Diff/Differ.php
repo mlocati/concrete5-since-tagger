@@ -117,7 +117,7 @@ class Differ
         return $this;
     }
 
-    public function getPatches(int $flags = self::FLAG_ALL, string $start, string $end): Patches
+    public function getPatches(int $flags = self::FLAG_ALL, string $start = '', string $end = ''): Patches
     {
         $result = new Patches();
         if ($this->progressInitHandler !== null) {
