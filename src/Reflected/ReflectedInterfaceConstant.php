@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace MLocati\C5SinceTagger\Reflected;
 
+use MLocati\C5SinceTagger\Interfaces\DefinedAtInterface;
 use MLocati\C5SinceTagger\Traits\DefinedAtTrait;
 
 /**
@@ -24,7 +25,7 @@ use MLocati\C5SinceTagger\Traits\DefinedAtTrait;
  *     }
  * )
  */
-class ReflectedInterfaceConstant extends ReflectedConstant
+class ReflectedInterfaceConstant extends ReflectedConstant implements DefinedAtInterface
 {
     /**
      * The associated interface.

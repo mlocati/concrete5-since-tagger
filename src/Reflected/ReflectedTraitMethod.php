@@ -6,6 +6,7 @@ namespace MLocati\C5SinceTagger\Reflected;
 
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
+use MLocati\C5SinceTagger\Interfaces\VisibilityInterface;
 
 /**
  * Represent a trait method.
@@ -25,7 +26,7 @@ use Doctrine\Common\Collections\Collection;
  *     }
  * )
  */
-class ReflectedTraitMethod extends ReflectedFunction
+class ReflectedTraitMethod extends ReflectedFunction implements VisibilityInterface
 {
     /**
      * The associated trait.
@@ -44,7 +45,7 @@ class ReflectedTraitMethod extends ReflectedFunction
      *
      * @var string
      *
-     * @see \MLocati\C5SinceTagger\Reflected\Visibility
+     * @see \MLocati\C5SinceTagger\Interfaces\VisibilityInterface
      */
     protected $visibility;
 
@@ -102,7 +103,7 @@ class ReflectedTraitMethod extends ReflectedFunction
     {
         return parent::createBase($name)
             ->setTrait($trait)
-            ->setVisibility(Visibility::PUBLIC)
+            ->setVisibility(VisibilityInterface::PUBLIC)
             ->setAbstract(false)
             ->setStatic(false)
             ->setFinal(false)

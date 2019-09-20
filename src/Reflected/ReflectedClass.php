@@ -6,6 +6,7 @@ namespace MLocati\C5SinceTagger\Reflected;
 
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
+use MLocati\C5SinceTagger\Interfaces\DefinedAtInterface;
 use MLocati\C5SinceTagger\Traits\DefinedAtTrait;
 use MLocati\C5SinceTagger\Traits\IndexedNameTrait;
 use MLocati\C5SinceTagger\Traits\RecordIDTrait;
@@ -31,7 +32,7 @@ use MLocati\C5SinceTagger\Traits\RecordIDTrait;
  *     }
  * )
  */
-class ReflectedClass
+class ReflectedClass implements DefinedAtInterface
 {
     use RecordIDTrait;
 

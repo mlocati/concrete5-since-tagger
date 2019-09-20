@@ -34,6 +34,11 @@ class DiffGroup
     private $vendorName;
 
     /**
+     * @var string
+     */
+    private $visibility;
+
+    /**
      * @var \MLocati\C5SinceTagger\Reflected\ReflectedVersion[]
      */
     private $versions = [];
@@ -52,7 +57,12 @@ class DiffGroup
         return $this->vendorName;
     }
 
-    public static function create(int $type, string $vendorName = ''): self
+    public function getVisibility(): string
+    {
+        return $this->visibility;
+    }
+
+    public static function create(int $type, string $vendorName = '', string $visibility = ''): self
     {
         if ($type === static::TYPE_VENDOR) {
             if ($vendorName === '') {
@@ -66,6 +76,7 @@ class DiffGroup
         $result = new static();
         $result->type = $type;
         $result->vendorName = $vendorName;
+        $result->visibility = $visibility;
 
         return $result;
     }

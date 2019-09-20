@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace MLocati\C5SinceTagger\Diff;
 
 use Doctrine\Common\Collections\Criteria;
+use MLocati\C5SinceTagger\Interfaces\VisibilityInterface;
 use MLocati\C5SinceTagger\Reflected\ReflectedClass;
 use MLocati\C5SinceTagger\Reflected\ReflectedInterface;
 use MLocati\C5SinceTagger\Reflected\ReflectedTrait;
@@ -260,7 +261,7 @@ class Differ
                 }
             }
             if (\in_array(null, $prevItems, true)) {
-                $since = $this->getDiffGroups($prevItems)->getSince();
+                $since = $this->getDiffGroups($prevItems, $item)->getSince();
             } else {
                 $since = '';
             }
@@ -607,7 +608,7 @@ class Differ
         return $previousVersion->getTraits()->matching($criteria)->first() ?: null;
     }
 
-    private function getDiffGroups(array $prevItems): DiffGroupList
+    private function getDiffGroups(array $prevItems, object $currentItem): DiffGroupList
     {
         $diffGroupList = new DiffGroupList();
         for ($index = \count($this->previousVersions) - 1; $index >= 0; $index--) {
@@ -615,10 +616,20 @@ class Differ
                 $diffGroupList->add(DiffGroup::TYPE_MISSING, $this->previousVersions[$index]);
             } else {
                 $type = $prevItems[$index]->isVendor() ? DiffGroup::TYPE_VENDOR : DiffGroup::TYPE_CORE;
-                $diffGroupList->add($type, $this->previousVersions[$index], $type === DiffGroup::TYPE_VENDOR ? $prevItems[$index]->getVendorName() : '');
+                $diffGroupList->add(
+                    $type,
+                    $this->previousVersions[$index],
+                    $type === DiffGroup::TYPE_VENDOR ? $prevItems[$index]->getVendorName() : '',
+                    $prevItems[$index] instanceof VisibilityInterface ? $prevItems[$index]->getVisibility() : ''
+                );
             }
         }
-        $diffGroupList->add(DiffGroup::TYPE_CORE, $this->baseVersion);
+        $diffGroupList->add(
+            DiffGroup::TYPE_CORE,
+            $this->baseVersion,
+            '',
+            $currentItem instanceof VisibilityInterface ? $currentItem->getVisibility() : ''
+        );
 
         return $diffGroupList;
     }

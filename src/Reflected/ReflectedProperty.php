@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace MLocati\C5SinceTagger\Reflected;
 
+use MLocati\C5SinceTagger\Interfaces\DefinedAtInterface;
+use MLocati\C5SinceTagger\Interfaces\VisibilityInterface;
 use MLocati\C5SinceTagger\Traits\DefinedAtTrait;
 use MLocati\C5SinceTagger\Traits\JsonTrait;
 use MLocati\C5SinceTagger\Traits\RecordIDTrait;
@@ -11,7 +13,7 @@ use MLocati\C5SinceTagger\Traits\RecordIDTrait;
 /**
  * Represent a property of a class/interface/trait.
  */
-abstract class ReflectedProperty
+abstract class ReflectedProperty implements DefinedAtInterface, VisibilityInterface
 {
     use RecordIDTrait;
 
@@ -40,7 +42,7 @@ abstract class ReflectedProperty
      *
      * @var string
      *
-     * @see \MLocati\C5SinceTagger\Reflected\Visibility
+     * @see \MLocati\C5SinceTagger\Interfaces\VisibilityInterface
      */
     protected $visibility;
 
@@ -102,7 +104,7 @@ abstract class ReflectedProperty
         $result
             ->setName($name)
             ->setStatic(false)
-            ->setVisibility(Visibility::PUBLIC)
+            ->setVisibility(VisibilityInterface::PUBLIC)
             ->setDefaultValue(null)
             ->setDefaultValueConstantName('')
             ->setType('')
@@ -167,7 +169,7 @@ abstract class ReflectedProperty
      *
      * @return string
      *
-     * @see \MLocati\C5SinceTagger\Reflected\Visibility
+     * @see \MLocati\C5SinceTagger\Interfaces\VisibilityInterface
      */
     public function getVisibility(): string
     {
@@ -181,7 +183,7 @@ abstract class ReflectedProperty
      *
      * @return $this
      *
-     * @see \MLocati\C5SinceTagger\Reflected\Visibility
+     * @see \MLocati\C5SinceTagger\Interfaces\VisibilityInterface
      */
     public function setVisibility(string $value): self
     {

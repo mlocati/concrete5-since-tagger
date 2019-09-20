@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace MLocati\C5SinceTagger\Reflected;
 
+use MLocati\C5SinceTagger\Interfaces\DefinedAtInterface;
+use MLocati\C5SinceTagger\Interfaces\VisibilityInterface;
 use MLocati\C5SinceTagger\Traits\DefinedAtTrait;
 
 /**
@@ -24,7 +26,7 @@ use MLocati\C5SinceTagger\Traits\DefinedAtTrait;
  *     }
  * )
  */
-class ReflectedClassConstant extends ReflectedConstant
+class ReflectedClassConstant extends ReflectedConstant implements DefinedAtInterface, VisibilityInterface
 {
     /**
      * The associated class.
@@ -43,7 +45,7 @@ class ReflectedClassConstant extends ReflectedConstant
      *
      * @var string
      *
-     * @see \MLocati\C5SinceTagger\Reflected\Visibility
+     * @see \MLocati\C5SinceTagger\Interfaces\VisibilityInterface
      */
     protected $visibility;
 
@@ -66,7 +68,7 @@ class ReflectedClassConstant extends ReflectedConstant
     {
         return parent::createBase($name, $value)
             ->setClass($class)
-            ->setVisibility(Visibility::PUBLIC)
+            ->setVisibility(VisibilityInterface::PUBLIC)
             ->setDefinedAt('')
             ->setSincePhpDoc('')
         ;
