@@ -89,7 +89,8 @@ class Parser
     private function getPhpBinary(string $webroot): string
     {
         $version = $this->versionDetector->detectVersion($webroot);
-        if (\version_compare($version, '8.999999.99999') > 0) {
+        // Use the current PHP version (which is 7.2+) where possible
+        if (\version_compare($version, '8.3dev') >= 0) {
             return PHP_BINARY;
         }
         $phpBinary = \getenv('C5VT_PHP5BIN');
